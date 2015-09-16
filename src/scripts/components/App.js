@@ -13,7 +13,8 @@ const styles = {
 const App = React.createClass({
   render() {
     return (
-      <div style={styles.wrap}>
+      // <div style={styles.wrap}>
+      <div>
         <ToDoList />
       </div>
     )

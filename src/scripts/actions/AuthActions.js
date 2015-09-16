@@ -3,6 +3,7 @@ import AuthConstants from '../constants/AuthConstants.js';
 import AuthStore from '../stores/AuthStore.js';
 
 export default {
+
   login(email, password) {
     // Do Server Action
 
