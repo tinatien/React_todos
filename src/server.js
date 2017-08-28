@@ -53,7 +53,7 @@ module.exports = function (app) {
     next();
   });
 
-  app.use(Routes.main);
+  app.use('/main',Routes.main);
 
   // Fallback to index.html
   app.use(function (req, res) {

@@ -1,232 +1,78 @@
-// import AppDispatcher from '../dispatcher/AppDispatcher.js';
-// import {EventEmitter} from 'events';
-// import AuthConstants from '../constants/AuthConstants.js';
-// import assign from 'object-assign';
-//
-//
-//
-// const CHANGE_EVENT = 'change';
-//
-// var _todos = {};
-//
-//
-// function create(text) {
-//   var id = Date.now();
-//   _todos[id] = {
-//     id: id,
-//     complete: false,
-//     text: text
-//   };
-// }
-//
-//
-// function delete(id) {
-//   delete _todos[id];
-// }
-//
-// const TodoStore = assign({}, EventEmitter.prototype, {
-//   emitChange() {
-//     this.emit(CHANGE_EVENT);
-//   },
-//
-//   addChangeListener(callback) {
-//     return this.on(CHANGE_EVENT, callback);
-//   },
-//
-//   removeChangeListener(listener) {
-//     return this.removeListener(CHANGE_EVENT, listener);
-//   },
-//   getAll(){
-//     return _todos;
-//   }
-//
-//
-//
-// });
-//
-// AppDispatcher.register((payload) => {
-//   const action = payload.action;
-//   var text;
-//
-//   switch (action) {
-//     case AuthConstants.TODO_CREATE:
-//
-//     text = action.text.trim();
-//       if (text !== '') {
-//       create(text);
-//       TodoStore.emitChange();
-//       break;
-//
-//     case AuthConstants.TODO_DELETE:
-//       delete(action.id);
-//       TodoStore.emitChange();
-//       break;
-//   }
-//
-//   return true;
-// });
-//
-// export default TodoStore;
 var AppDispatcher = require('../dispatcher/AppDispatcher');
 var EventEmitter = require('events').EventEmitter;
 var TodoConstants = require('../constants/TodoConstants');
 var assign = require('object-assign');
+import _ from 'lodash';
 
 var CHANGE_EVENT = 'change';
 
-var _todos = {};
+let _todos = [];
 
-/**
- * Create a TODO item.
- * @param  {string} text The content of the TODO
- */
-function create(text) {
-  // Hand waving here -- not showing how this interacts with XHR or persistent
-  // server-side storage.
-  // Using the current timestamp + random number in place of a real id.
-  var id = (+new Date() + Math.floor(Math.random() * 999999)).toString(36);
-  _todos[id] = {
-    id: id,
-    complete: false,
-    text: text
-  };
-}
-
-/**
- * Update a TODO item.
- * @param  {string} id
- * @param {object} updates An object literal containing only the data to be
- *     updated.
- */
-function update(id, updates) {
-  _todos[id] = assign({}, _todos[id], updates);
-}
-
-/**
- * Update all of the TODO items with the same object.
- * @param  {object} updates An object literal containing only the data to be
- *     updated.
- */
-function updateAll(updates) {
-  for (var id in _todos) {
-    update(id, updates);
-  }
-}
-
-/**
- * Delete a TODO item.
- * @param  {string} id
- */
-function destroy(id) {
-  delete _todos[id];
-}
-
-/**
- * Delete all the completed TODO items.
- */
-function destroyCompleted() {
-  for (var id in _todos) {
-    if (_todos[id].complete) {
-      destroy(id);
-    }
-  }
-}
-
-var TodoStore = assign({}, EventEmitter.prototype, {
-
-  /**
-   * Tests whether all the remaining TODO items are marked as completed.
-   * @return {boolean}
-   */
-  areAllComplete: function() {
-    for (var id in _todos) {
-      if (!_todos[id].complete) {
-        return false;
-      }
-    }
-    return true;
-  },
-
-  /**
-   * Get the entire collection of TODOs.
-   * @return {object}
-   */
-  getAll: function() {
-    return _todos;
-  },
-
-  emitChange: function() {
+const TodoStore = assign({}, EventEmitter.prototype, {
+  emitChange() {
     this.emit(CHANGE_EVENT);
   },
 
-  /**
-   * @param {function} callback
-   */
-  addChangeListener: function(callback) {
-    this.on(CHANGE_EVENT, callback);
+  addChangeListener(callback) {
+    return this.on(CHANGE_EVENT, callback);
   },
 
-  /**
-   * @param {function} callback
-   */
-  removeChangeListener: function(callback) {
-    this.removeListener(CHANGE_EVENT, callback);
+  removeChangeListener(listener) {
+    return this.removeListener(CHANGE_EVENT, listener);
+  },
+
+  getAll() {
+    return _todos;
   }
 });
+AppDispatcher.register((payload) => {
+    const action = payload.action;
 
-// Register callback to handle all updates
-AppDispatcher.register(function(action) {
-  var text;
+    switch (action) {
+      case TodoConstants.TODO_FETCHED:
+        _todos = payload.todos;
 
-  switch(action.actionType) {
-    case TodoConstants.TODO_CREATE:
-      text = action.text.trim();
-      if (text !== '') {
-        create(text);
         TodoStore.emitChange();
-      }
-      break;
+        break;
 
-    case TodoConstants.TODO_TOGGLE_COMPLETE_ALL:
-      if (TodoStore.areAllComplete()) {
-        updateAll({complete: false});
-      } else {
-        updateAll({complete: true});
-      }
-      TodoStore.emitChange();
-      break;
+      case TodoConstants.TODO_CREATE:
+        _todos.push({
+          id: payload.id,
+          text: payload.text,
+          complete: false
+        });
 
-    case TodoConstants.TODO_UNDO_COMPLETE:
-      update(action.id, {complete: false});
-      TodoStore.emitChange();
-      break;
-
-    case TodoConstants.TODO_COMPLETE:
-      update(action.id, {complete: true});
-      TodoStore.emitChange();
-      break;
-
-    case TodoConstants.TODO_UPDATE_TEXT:
-      text = action.text.trim();
-      if (text !== '') {
-        update(action.id, {text: text});
         TodoStore.emitChange();
-      }
-      break;
+        break;
 
-    case TodoConstants.TODO_DESTROY:
-      destroy(action.id);
-      TodoStore.emitChange();
-      break;
+      case TodoConstants.TODO_DESTROY:
+        var todoIndex = _.findIndex(_todos, {
+          id: payload.id
+        });
 
-    case TodoConstants.TODO_DESTROY_COMPLETED:
-      destroyCompleted();
-      TodoStore.emitChange();
-      break;
+        if (~todoIndex) {
+          _todos.splice(todoIndex, 1);
+          TodoStore.emitChange();
+        }
+        break;
 
-    default:
-      // no op
-  }
-});
+      case TodoConstants.TODO_COMPLETE:
+        var todo = _.find(_todos, {
+          id: payload.id
+        });
+
+        if (todo) {
+          todo.complete = !todo.complete;
+          TodoStore.emitChange();
+        }
+        break;
+    }
+
+    return true;
+    });
+
+
+
+
 
 module.exports = TodoStore;
